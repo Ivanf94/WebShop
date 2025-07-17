@@ -1,5 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.AspNetCore.Identity;
+using AlgebraWebShop2025.Models;
 
 namespace AlgebraWebShop2025.Data
 {
@@ -22,6 +24,7 @@ namespace AlgebraWebShop2025.Data
         [StringLength(100)]
         public string? Country { get; set; }
 
-        //TODO: dodati FK-e (Coolection) na tablicu narudžba kada bude napravljena!
+        [ForeignKey("UserId")]
+        public virtual ICollection<Order> Orders { get; set; }
     }
 }
