@@ -34,18 +34,18 @@
 		</select> *@
 		<div class="dropdown">
 			<button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButtonSort" 
-					data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
+			data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-bs-toggle="dropdown">
 				Sort by
 			</button>
 			<div class="dropdown-menu" aria-labelledby="dropdownMenuButtonSort">
 				<a class="dropdown-item" asp-action="Product" 
-					asp-route-sort="Price High to Low">Price High to Low</a>
+				asp-route-sort="Price High to Low">Price High to Low</a>
 				<a class="dropdown-item" asp-action="Product"
-				   asp-route-sort="Price Low to High">Price Low to High</a>
+				asp-route-sort="Price Low to High">Price Low to High</a>
 				<a class="dropdown-item" asp-action="Product"
-				   asp-route-sort="Name A to Z">Name A to Z</a>
+				asp-route-sort="Name A to Z">Name A to Z</a>
 				<a class="dropdown-item" asp-action="Product"
-				   asp-route-sort="Name Z to A">Name Z to A</a>
+				asp-route-sort="Name Z to A">Name Z to A</a>
 			</div>
 		</div>
 	</div>
@@ -81,10 +81,20 @@
 							<tr>
 								<td>@item.Price €</td>
 								<td>
-									<form>
-										<input type="submit" class="btn btn-success btn-sm" 
-										value="Add to cart"/>
-									</form>
+									@if(@item.Quantity > 0)
+									{
+
+										<form method="post" asp-controller="Cart" asp-action="AddToCart">
+											<input type="hidden" name="productId" value="@item.Id" />
+											<input type="hidden" name="quantity" value="1" />
+											<input type="submit" class="btn btn-success btn-sm" 
+											value="Add to cart"/>
+										</form>
+									}
+									else
+									{
+										<label class="btn btn-danger">Out of stock!</label>
+									}
 								</td>
 							</tr>
 						</tbody>

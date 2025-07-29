@@ -39,21 +39,22 @@ namespace AlgebraWebShop2025.Controllers
                     c => c.CategoryId == categoryId)).ToList();
             }
 
+            if(priceFrom != null)
+            {
+                products=products.Where(p=>p.Price>=priceFrom).ToList();
+            }
+
+            if(priceTo != null)
+            {
+                products = products.Where(p => p.Price <= priceTo).ToList();
+            }
+
             if (sort != null)
             {
                 if (sort == "Price High to Low") products = products.OrderByDescending(p => p.Price).ToList();
                 if (sort == "Price Low to High") products = products.OrderBy(p => p.Price).ToList();
                 if (sort == "Name A to Z") products = products.OrderBy(p => p.Title).ToList();
                 if (sort == "Name Z to A") products = products.OrderByDescending(p => p.Title).ToList();
-            }
-
-            if(priceFrom != null)
-            {
-                products=products.Where(p=>p.Price>=priceFrom).ToList();
-            }
-            if(priceTo != null)
-            {
-                products = products.Where(p => p.Price <= priceTo).ToList();
             }
 
             if (per_page == null) per_page = 20;
