@@ -4,6 +4,8 @@ using AlgebraWebShop2025.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
+using AlgebraWebShop2025.Extensions;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace AlgebraWebShop2025.Controllers
 {
@@ -11,6 +13,7 @@ namespace AlgebraWebShop2025.Controllers
     {
         private readonly ILogger<HomeController> _logger;
         private readonly ApplicationDbContext _context;
+        public const string SessionKeyName = "_cart";
 
         public HomeController(ILogger<HomeController> logger, ApplicationDbContext context)
         {
@@ -67,6 +70,61 @@ namespace AlgebraWebShop2025.Controllers
             ViewBag.Categories=_context.Category.ToList();
 
             return View(products);
+        }
+
+        public IActionResult SingleProduct(int id)
+        {
+            var product = _context.Product.Find(id);
+            if (product == null) return RedirectToAction(nameof(Product));
+            product.Images=_context.Image.Where(i=>i.ProductId==id).ToList();
+            product.ProductCategories = _context.ProductCategory.Where(p => p.ProductId == id).ToList();
+            foreach(var item in product.ProductCategories)
+            {
+                item.CategoryTitle = _context.Category.Find(item.CategoryId).Title;
+            }
+
+            return View(product);
+        }
+
+        public IActionResult Order(List<string> errors)
+        {
+            List<CartItem> cart = HttpContext.Session.GetObjectFromJson<List<CartItem>>(SessionKeyName) 
+                ?? new List<CartItem>();
+            if(cart.Count == 0)
+            {
+                return RedirectToAction(nameof(Product));
+            }
+            decimal total = 0;
+            foreach(var item in cart)
+            {
+                item.Product.Images=_context.Image.Where(i=>i.ProductId==item.Product.Id).ToList();
+                total += item.getTotal();
+            }
+
+            ViewBag.TotalPrice = total;
+
+            ViewBag.Errors = errors;
+
+            return View(cart);
+        }
+
+        [HttpPost]
+        public IActionResult CreateOrder([Bind("")] Order order)
+        {
+            List<CartItem> cart = HttpContext.Session.GetObjectFromJson<List<CartItem>>(SessionKeyName) 
+                ?? new List<CartItem>();
+            if (cart.Count == 0)
+            {
+                return RedirectToAction(nameof(Product));
+            }
+
+            var modelErrors = new List<string>();
+
+            //TODO: check available vs ordered!
+
+            //TODO: if no model errors make order!
+
+            return RedirectToAction(nameof(Order), new { errors = modelErrors });
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
