@@ -6,6 +6,7 @@ using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using AlgebraWebShop2025.Extensions;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace AlgebraWebShop2025.Controllers
 {
@@ -88,11 +89,19 @@ namespace AlgebraWebShop2025.Controllers
 
         public IActionResult Order(List<string> errors)
         {
+            if (errors == null) errors = new List<string>();
+            string msg = CheckCart();
+            if (msg != "OK")
+            {
+                msg = "Cart: " + msg;
+                errors.Add(msg);
+            }
             List<CartItem> cart = HttpContext.Session.GetObjectFromJson<List<CartItem>>(SessionKeyName) 
                 ?? new List<CartItem>();
-            if(cart.Count == 0)
+            if (cart.Count == 0)
             {
-                return RedirectToAction(nameof(Product));
+                ViewBag.OrderButton = "disabled=\"disabled\"";
+
             }
             decimal total = 0;
             foreach(var item in cart)
@@ -109,22 +118,80 @@ namespace AlgebraWebShop2025.Controllers
         }
 
         [HttpPost]
-        public IActionResult CreateOrder([Bind("")] Order order)
+        [ValidateAntiForgeryToken]
+        public IActionResult CreateOrder([Bind("Total," + 
+            "BillingFirstName,BillingLastName,BillingEmail,BillingPhone,BillingAddress,BillingCity,BillingZIP,BillingCountry," +
+            "ShippingFirstName,ShippingLastName,ShippingEmail,ShippingPhone,ShippingAddress,ShippingCity,ShippingZIP,ShippingCountry," +
+            "Message")] Order order, bool ShippingSameAsBilling)
         {
+            var modelErrors = new List<string>();
+
+            string msg = CheckCart();
+            if (msg != "OK")
+            {
+                msg = "Cart: " + msg;
+                modelErrors.Add(msg);
+            }
             List<CartItem> cart = HttpContext.Session.GetObjectFromJson<List<CartItem>>(SessionKeyName) 
                 ?? new List<CartItem>();
             if (cart.Count == 0)
             {
-                return RedirectToAction(nameof(Product));
+                return RedirectToAction(nameof(Order), new { errors = modelErrors });
             }
 
-            var modelErrors = new List<string>();
+            //TODO: sync shipping and billing if checked when they are the same!
 
-            //TODO: check available vs ordered!
+            //TODO: remove useless validations and bind data
 
-            //TODO: if no model errors make order!
+            if (ModelState.IsValid)
+            {
+                //TODO: if no model errors make order!
+            }
+            else
+            {
+                foreach(var modelState in ModelState.Values)
+                {
+                    foreach(var modelError in modelState.Errors)
+                    {
+                        modelErrors.Add(modelError.ErrorMessage);
+                    }
+                }
+            }
+
 
             return RedirectToAction(nameof(Order), new { errors = modelErrors });
+        }
+
+        private string CheckCart()
+        {
+            List<CartItem> cart = HttpContext.Session.GetObjectFromJson<List<CartItem>>(SessionKeyName)
+                ?? new List<CartItem>();
+            if (cart.Count == 0) return "Cart is empty";
+
+            string message = "";
+            for(int i = 0; i < cart.Count; i++)
+            {
+                var prod = _context.Product.Find(cart[i].Product.Id);
+                if (prod.Quantity < cart[i].Quantity)
+                {
+                    cart[i].Quantity = prod.Quantity;
+                    message += " " + prod.Title + " quantity set to available quantity.";
+                }
+                if (cart[i].Quantity == 0)
+                {
+                    message += " The item " + cart[i].Product.Title + " had to be remove because no stock!";
+                    cart.RemoveAt(i);
+                    i--;
+                }
+            }
+
+            if(message.Length > 0)
+            {
+                HttpContext.Session.SetObjectAsJson(SessionKeyName, cart);
+                return message;
+            }
+
+            return "OK";
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
