@@ -186,6 +186,8 @@ namespace AlgebraWebShop2025.Controllers
                 ModelState.Remove("ShippingAddress");
                 order.ShippingCity = order.BillingCity;
                 ModelState.Remove("ShippingCity");
+                order.ShippingCountry = order.BillingCountry;
+                ModelState.Remove("ShippingCountry");
                 order.ShippingZIP = order.BillingZIP;
                 ModelState.Remove("ShippingZIP");
             }
