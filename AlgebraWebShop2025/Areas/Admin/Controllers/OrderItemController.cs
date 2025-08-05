@@ -7,10 +7,12 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using AlgebraWebShop2025.Data;
 using AlgebraWebShop2025.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace AlgebraWebShop2025.Areas.Admin.Controllers
 {
     [Area("Admin")]
+    [Authorize(Roles = "Admin")]
     public class OrderItemController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -21,9 +23,20 @@ namespace AlgebraWebShop2025.Areas.Admin.Controllers
         }
 
         // GET: Admin/OrderItem
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int orderid)
         {
-            return View(await _context.OrderItem.ToListAsync());
+            if (_context.Order.Where(o=>o.Id==orderid).FirstOrDefault()==null) 
+                return RedirectToAction("Index", "Order");
+            var items = await _context.OrderItem.Where(oi=>oi.OrderId==orderid).ToListAsync();
+            decimal total = 0;
+            foreach (var item in items)
+            {
+                item.ProductTitle = _context.Product.Find(item.ProductId).Title;
+                total += (item.Quantity * item.Price * (1 - item.Discount / 100));
+            }
+            ViewBag.Total = total;
+            ViewBag.OrderId = orderid;
+            return View(items);
         }
 
         // GET: Admin/OrderItem/Details/5
@@ -41,13 +54,26 @@ namespace AlgebraWebShop2025.Areas.Admin.Controllers
                 return NotFound();
             }
 
+            orderItem.ProductTitle = _context.Product.Find(orderItem.ProductId).Title;
+
             return View(orderItem);
         }
 
         // GET: Admin/OrderItem/Create
-        public IActionResult Create()
+        public IActionResult Create(int orderid)
         {
-            return View();
+            if (_context.Order.Where(o => o.Id == orderid).FirstOrDefault() == null)
+                return RedirectToAction("Index", "Order");
+
+            OrderItem item = new OrderItem();
+            item.OrderId = orderid;
+            item.Price = 0;
+            item.Discount = 0;
+            item.Quantity = 1;
+
+            var products = new SelectList(_context.Product, "Id", "Title");
+            ViewBag.Products = products;
+            return View(item);
         }
 
         // POST: Admin/OrderItem/Create
@@ -57,17 +83,23 @@ namespace AlgebraWebShop2025.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,OrderId,ProductId,Quantity,Price,Discount")] OrderItem orderItem)
         {
+            //ModelState.Remove("Id");
+            ModelState.Remove("ProductTitle");
             if (ModelState.IsValid)
             {
                 _context.Add(orderItem);
+                var product = _context.Product.Find(orderItem.ProductId);
+                product.Quantity-=orderItem.Quantity;
+                _context.Update(product);
                 await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                UpdateOrderTotal(orderItem.OrderId);
+                return RedirectToAction(nameof(Edit), new { id=orderItem.Id, isNew = true });
             }
             return View(orderItem);
         }
 
         // GET: Admin/OrderItem/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+        public async Task<IActionResult> Edit(int? id, bool isNew)
         {
             if (id == null)
             {
@@ -79,6 +111,22 @@ namespace AlgebraWebShop2025.Areas.Admin.Controllers
             {
                 return NotFound();
             }
+
+            var product = await _context.Product.FindAsync(orderItem.ProductId);
+
+            if (isNew)
+            {
+                orderItem.Price = product.Price;
+                orderItem.Discount = product.Discount;
+                _context.Update(orderItem);
+                await _context.SaveChangesAsync();
+                UpdateOrderTotal(orderItem.OrderId);
+            }
+
+            orderItem.ProductTitle = product.Title;
+
+            ViewBag.QuantityMessage = "Available quantity: " + product.Quantity;
+
             return View(orderItem);
         }
 
@@ -94,12 +142,26 @@ namespace AlgebraWebShop2025.Areas.Admin.Controllers
                 return NotFound();
             }
 
+            var product = _context.Product.Find(orderItem.ProductId);
+
+            ModelState.Remove("ProductTitle");
             if (ModelState.IsValid)
             {
                 try
                 {
-                    _context.Update(orderItem);
+                    var oldOrderItem = _context.OrderItem.Find(id);
+                    var oldquantity = oldOrderItem.Quantity;
+
+                    oldOrderItem.Price = orderItem.Price;
+                    oldOrderItem.Discount = orderItem.Discount;
+                    oldOrderItem.Quantity = orderItem.Quantity;
+
+                    _context.Update(oldOrderItem);
+
+                    product.Quantity -= (orderItem.Quantity - oldquantity);
+                    _context.Update(product);
                     await _context.SaveChangesAsync();
+                    UpdateOrderTotal(oldOrderItem.OrderId);
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -112,8 +174,11 @@ namespace AlgebraWebShop2025.Areas.Admin.Controllers
                         throw;
                     }
                 }
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(nameof(Index), new { orderid=orderItem.OrderId });
             }
+
+            orderItem.ProductTitle = product.Title;
+            ViewBag.QuantityMessage = "Available quantity: " + product.Quantity;
             return View(orderItem);
         }
 
@@ -131,6 +196,8 @@ namespace AlgebraWebShop2025.Areas.Admin.Controllers
             {
                 return NotFound();
             }
+            
+            orderItem.ProductTitle = _context.Product.Find(orderItem.ProductId).Title;
 
             return View(orderItem);
         }
@@ -144,15 +211,32 @@ namespace AlgebraWebShop2025.Areas.Admin.Controllers
             if (orderItem != null)
             {
                 _context.OrderItem.Remove(orderItem);
+                var product=await _context.Product.FindAsync(orderItem.ProductId);
+                product.Quantity += orderItem.Quantity;
+                _context.Update(product);
             }
-
+            int orderid = orderItem.OrderId;
             await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+            UpdateOrderTotal(orderid);
+            return RedirectToAction(nameof(Index), new { orderid=orderid });
         }
 
         private bool OrderItemExists(int id)
         {
             return _context.OrderItem.Any(e => e.Id == id);
+        }
+
+        private void UpdateOrderTotal(int orderId)
+        {
+            var order = _context.Order.Find(orderId);
+            if (order == null) return;
+            var orderItems=_context.OrderItem.Where(o=>o.OrderId == orderId).ToList();
+            decimal total = 0;
+            foreach (var item in orderItems) 
+                total += (item.Price * item.Quantity * (1 - item.Discount / 100));
+            order.Total = total;
+            _context.Update(order);
+            _context.SaveChanges();
         }
     }
 }

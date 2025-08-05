@@ -7,11 +7,17 @@
 <h1>Index</h1>
 
 <p>
-    <a asp-action="Create">Create New</a>
+    <a asp-action="Create" asp-route-orderid="@ViewBag.OrderId">Add order item</a>
+</p>
+<p>
+    <a asp-action="Index" asp-controller="Order">Back to Order list</a>
 </p>
 <table class="table">
     <thead>
         <tr>
+            <th>
+                Item
+            </th>
             <th>
                 @Html.DisplayNameFor(model => model.Quantity)
             </th>
@@ -21,6 +27,9 @@
             <th>
                 @Html.DisplayNameFor(model => model.Discount)
             </th>
+            <th>
+                Item Total
+            </th>
             <th></th>
         </tr>
     </thead>
@@ -28,13 +37,19 @@
 @foreach (var item in Model) {
         <tr>
             <td>
+                @Html.DisplayFor(modelItem => item.ProductTitle)
+            </td>
+            <td>
                 @Html.DisplayFor(modelItem => item.Quantity)
             </td>
             <td>
-                @Html.DisplayFor(modelItem => item.Price)
+                @Html.DisplayFor(modelItem => item.Price) €
             </td>
             <td>
-                @Html.DisplayFor(modelItem => item.Discount)
+                @Html.DisplayFor(modelItem => item.Discount) %
+            </td>
+            <td>
+                @((item.Quantity*item.Price*(1-item.Discount/100)).ToString("0.00")) €
             </td>
             <td>
                 <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
@@ -43,5 +58,12 @@
             </td>
         </tr>
 }
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td><b>Total price: </b></td>
+            <td>@ViewBag.Total.ToString("0.00") €</td>
+        </tr>
     </tbody>
 </table>

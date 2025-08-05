@@ -26,7 +26,6 @@
                 </div>
             </div>
         <br />
-        <br />
         <hr />
             <div class="text-start">
                 <h5>Billing info: </h5>
@@ -176,6 +175,8 @@
                 <input type="submit" value="Save" class="btn btn-primary" />
             </div>
         </form>
+    <partial name="_OrderItemsPartial" for="@Model.OrderItems" />
+    <a asp-controller="OrderItem" asp-action="Index" asp-route-orderid="@Model.Id">Edit order items</a>
 </div>
 
 <div>

@@ -9,6 +9,7 @@ using AlgebraWebShop2025.Data;
 using AlgebraWebShop2025.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.IdentityModel.Tokens;
 
 namespace AlgebraWebShop2025.Areas.Admin.Controllers
 {
@@ -56,7 +57,13 @@ namespace AlgebraWebShop2025.Areas.Admin.Controllers
         // GET: Admin/Order/Create
         public IActionResult Create()
         {
-            return View();
+            Order order = new Order();
+            order.DateCreated = DateTime.Now;
+            order.Total = 0; 
+            
+            ViewBag.Users = new SelectList(_userManager.Users, "Id", "Email");
+            
+            return View(order);
         }
 
         // POST: Admin/Order/Create
@@ -64,14 +71,44 @@ namespace AlgebraWebShop2025.Areas.Admin.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,DateCreated,Total,BillingFirstName,BillingLastName,BillingEmail,BillingPhone,BillingAddress,BillingCity,BillingZIP,BillingCountry,ShippingFirstName,ShippingLastName,ShippingEmail,ShippingPhone,ShippingAddress,ShippingCity,ShippingZIP,ShippingCountry,Message,UserId")] Order order)
+        public async Task<IActionResult> Create([Bind("Id,DateCreated,Total,BillingFirstName,BillingLastName,BillingEmail,BillingPhone,BillingAddress,BillingCity,BillingZIP,BillingCountry,ShippingFirstName,ShippingLastName,ShippingEmail,ShippingPhone,ShippingAddress,ShippingCity,ShippingZIP,ShippingCountry,Message,UserId")] 
+        Order order, string ShippingSameAsBilling)
         {
+            ModelState.Remove("ShippingSameAsBilling");
+            ModelState.Remove("OrderItems");
+
+            if (order.Message.IsNullOrEmpty()) order.Message = "";
+            ModelState.Remove("Message");
+
+            if (ShippingSameAsBilling == "on")
+            {
+                order.ShippingFirstName = order.BillingFirstName;
+                ModelState.Remove("ShippingFirstName");
+                order.ShippingLastName = order.BillingLastName;
+                ModelState.Remove("ShippingLastName");
+                order.ShippingEmail = order.BillingEmail;
+                ModelState.Remove("ShippingEmail");
+                order.ShippingPhone = order.BillingPhone;
+                ModelState.Remove("ShippingPhone");
+                order.ShippingAddress = order.BillingAddress;
+                ModelState.Remove("ShippingAddress");
+                order.ShippingCity = order.BillingCity;
+                ModelState.Remove("ShippingCity");
+                order.ShippingCountry = order.BillingCountry;
+                ModelState.Remove("ShippingCountry");
+                order.ShippingZIP = order.BillingZIP;
+                ModelState.Remove("ShippingZIP");
+            }
+
             if (ModelState.IsValid)
             {
                 _context.Add(order);
                 await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+
+                return RedirectToAction("Index", "OrderItem", new { orderid = order.Id });
             }
+
+            ViewBag.Users = new SelectList(_userManager.Users, "Id", "Email");
             return View(order);
         }
 
@@ -88,6 +125,10 @@ namespace AlgebraWebShop2025.Areas.Admin.Controllers
             {
                 return NotFound();
             }
+
+            order.OrderItems = _context.OrderItem.Where(oi => oi.OrderId == id).ToList();
+            foreach (var item in order.OrderItems)
+                item.ProductTitle = _context.Product.Find(item.ProductId).Title;
 
             ViewBag.Users = new SelectList(_userManager.Users,"Id","Email");
 
@@ -134,6 +175,11 @@ namespace AlgebraWebShop2025.Areas.Admin.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
+
+            order.OrderItems = _context.OrderItem.Where(oi => oi.OrderId == id).ToList();
+            foreach (var item in order.OrderItems)
+                item.ProductTitle = _context.Product.Find(item.ProductId).Title;
+
             ViewBag.Users = new SelectList(_userManager.Users, "Id", "Email");
             return View(order);
         }
