@@ -1,0 +1,46 @@
+﻿@using Microsoft.AspNetCore.Identity
+@model IEnumerable<IdentityRole>
+@{
+	ViewBag.Title = "All roles";
+}
+
+<h1> All roles </h1>
+
+<p>
+	<a asp-action="CreateRole">Add new role</a>
+</p>
+
+@if (Model.Any())
+{
+	<div class="row">
+		@foreach(var role in Model)
+		{
+			<div class="card mb-3">
+				<div class="card-header">
+					Role ID : @role.Id
+				</div>
+				<div class="card-body">
+					<h5 class="card-title"> @role.Name </h5>
+				</div>
+				<div class="card-footer">
+					<a asp-action="Edit" asp-route-id="@role.Id" class="btn btn-primary">Edit</a>
+					<form method="post" asp-action="DeleteRole">
+						<input type="hidden" name="roleId" value="@role.Id" />
+							<input type="submit" class="btn btn-danger" value="Delete" />
+					</form>
+				</div>
+			</div>
+		}
+	</div>
+}
+else
+{
+	<div class="card mb-3">
+		<div class="card-header">
+			No roles created yet
+		</div>
+		<div class="card-body">
+			<h5 class="card-title"> Use create role to add new roles! </h5>
+		</div>
+	</div>
+}
